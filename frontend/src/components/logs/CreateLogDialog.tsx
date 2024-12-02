@@ -22,14 +22,26 @@ import { LogType, LogCreate, Log } from '../../types/log';
 interface CreateLogDialogProps {
   open: boolean;
   onClose: () => void;
+  initialData?: Log | null;
 }
 
-const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose }) => {
+const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose, initialData }) => {
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [type, setType] = React.useState<LogType>(LogType.OTHER);
   const [projectId, setProjectId] = React.useState<string>('');
   const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    if (initialData) {
+      setName(initialData.title);
+      setDescription(initialData.content);
+      setType(initialData.log_type as LogType);
+      setProjectId(initialData.project_id ? initialData.project_id.toString() : '');
+    } else {
+      resetForm();
+    }
+  }, [initialData]);
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
     queryKey: ['projects'],
@@ -37,7 +49,12 @@ const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose }) => {
   });
 
   const createLogMutation = useMutation({
-    mutationFn: (newLog: LogCreate) => LogService.createLog(newLog),
+    mutationFn: (newLog: LogCreate) => {
+      if (initialData) {
+        return LogService.updateLog(initialData.id, newLog);
+      }
+      return LogService.createLog(newLog);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['logs'] });
       onClose();
@@ -65,7 +82,7 @@ const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>Create New Log</DialogTitle>
+        <DialogTitle>{initialData ? 'Edit Log' : 'Create New Log'}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
@@ -129,7 +146,7 @@ const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose }) => {
             {createLogMutation.isPending ? (
               <CircularProgress size={24} />
             ) : (
-              'Create'
+              initialData ? 'Update' : 'Create'
             )}
           </Button>
         </DialogActions>

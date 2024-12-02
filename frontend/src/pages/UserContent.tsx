@@ -16,15 +16,20 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LogService } from '../services/logs';
 import { getProjectMindmaps, Mindmap } from '../services/mindmaps';
 import { getProjectConceptNotes, ConceptNote } from '../services/concepts';
 import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import CreateLogDialog from '../components/logs/CreateLogDialog';
+import { Log } from '../types/log';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -53,9 +58,12 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function UserContent() {
+  const queryClient = useQueryClient();
   const [value, setValue] = React.useState(0);
   const [selectedProjectId, setSelectedProjectId] = React.useState<number | null>(null);
   const [isCreateLogOpen, setIsCreateLogOpen] = React.useState(false);
+  const [selectedLog, setSelectedLog] = React.useState<Log | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   // Fetch projects
   const { data: projects = [] } = useQuery({
@@ -85,8 +93,18 @@ export default function UserContent() {
     enabled: !!selectedProjectId
   });
 
+  // Mutations
+  const deleteLogMutation = useMutation({
+    mutationFn: (logId: number) => LogService.deleteLog(logId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['logs'] });
+      setIsDeleteDialogOpen(false);
+      setSelectedLog(null);
+    }
+  });
+
   const handleProjectChange = (event: any) => {
-    setSelectedProjectId(event.target.value);
+    setSelectedProjectId(event.target.value === "" ? null : event.target.value);
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -95,6 +113,22 @@ export default function UserContent() {
 
   const handleCreateLog = () => {
     setIsCreateLogOpen(true);
+  };
+
+  const handleEditLog = (log: Log) => {
+    setSelectedLog(log);
+    setIsCreateLogOpen(true);
+  };
+
+  const handleDeleteLog = (log: Log) => {
+    setSelectedLog(log);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedLog) {
+      deleteLogMutation.mutate(selectedLog.id);
+    }
   };
 
   return (
@@ -114,7 +148,7 @@ export default function UserContent() {
             </MenuItem>
             {projects.map((project: any) => (
               <MenuItem key={project.id} value={project.id}>
-                {project.name}
+                {project.title}
               </MenuItem>
             ))}
           </Select>
@@ -154,10 +188,21 @@ export default function UserContent() {
                 />
                 <ListItemSecondaryAction>
                   <Chip label={log.log_type} size="small" sx={{ mr: 1 }} />
-                  <IconButton edge="end" aria-label="edit" size="small" sx={{ mr: 1 }}>
+                  <IconButton 
+                    edge="end" 
+                    aria-label="edit" 
+                    size="small" 
+                    sx={{ mr: 1 }}
+                    onClick={() => handleEditLog(log)}
+                  >
                     <EditIcon />
                   </IconButton>
-                  <IconButton edge="end" aria-label="delete" size="small">
+                  <IconButton 
+                    edge="end" 
+                    aria-label="delete" 
+                    size="small"
+                    onClick={() => handleDeleteLog(log)}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </ListItemSecondaryAction>
@@ -200,16 +245,7 @@ export default function UserContent() {
               <ListItem>
                 <ListItemText
                   primary={concept.title}
-                  secondary={
-                    <>
-                      <Typography variant="body2" color="textSecondary">
-                        {concept.content}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Created: {format(new Date(concept.created_at), 'PPpp')}
-                      </Typography>
-                    </>
-                  }
+                  secondary={concept.content}
                 />
                 <ListItemSecondaryAction>
                   <IconButton edge="end" aria-label="edit" size="small" sx={{ mr: 1 }}>
@@ -225,10 +261,27 @@ export default function UserContent() {
         </List>
       </TabPanel>
 
+      {/* Create/Edit Log Dialog */}
       <CreateLogDialog
         open={isCreateLogOpen}
-        onClose={() => setIsCreateLogOpen(false)}
+        onClose={() => {
+          setIsCreateLogOpen(false);
+          setSelectedLog(null);
+        }}
+        initialData={selectedLog}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Log</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this log?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
-};
+}
