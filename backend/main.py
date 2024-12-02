@@ -1,27 +1,30 @@
+import os
+import sys
+import logging
+
+# Add the backend directory to Python path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.append(backend_dir)
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-import os
 import datetime
 from dotenv import load_dotenv
 from routers import (
-    auth,
-    tasks_router,
-    activities_router,
-    development_router,
-    profile_router,
-    projects_router,
-    ai_router,
-    concepts_router,
-    ideas_router,
-    logs_router,
-    mindmaps_router,
-    project_ideas_router
+    auth_router, users_router, tasks_router, projects_router, activities_router,
+    ideas_router, concepts_router, mindmaps_router, logs_router, log_entries_router
 )
+from database import init_db
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app instance
 app = FastAPI(
@@ -33,31 +36,35 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React app
+    allow_origins=["http://localhost:3000"],  # React app URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
-app.include_router(activities_router, prefix="/api/activities", tags=["activities"])
-app.include_router(development_router, prefix="/api/development", tags=["development"])
-app.include_router(profile_router, prefix="/api/profile", tags=["profile"])
 app.include_router(projects_router, prefix="/api/projects", tags=["projects"])
-app.include_router(ai_router, prefix="/api/ai", tags=["ai"])
-app.include_router(concepts_router, prefix="/api/concepts", tags=["concepts"])
+app.include_router(activities_router, prefix="/api/activities", tags=["activities"])
 app.include_router(ideas_router, prefix="/api/ideas", tags=["ideas"])
-app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
+app.include_router(concepts_router, prefix="/api/concepts", tags=["concepts"])
 app.include_router(mindmaps_router, prefix="/api/mindmaps", tags=["mindmaps"])
-app.include_router(project_ideas_router, prefix="/api/project-ideas", tags=["project-ideas"])
+app.include_router(logs_router, prefix="/api/logs", tags=["logs"])
+app.include_router(log_entries_router, prefix="/api/logs", tags=["log_entries"])
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Initializing database...")
+    init_db()
+    logger.info("Database initialized successfully")
 
 # Root endpoint
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to IPMS API",
+        "message": "Welcome to the IPMS API",
         "status": "active",
         "version": "1.0.0"
     }

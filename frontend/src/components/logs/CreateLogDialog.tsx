@@ -9,12 +9,15 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  CircularProgress
 } from '@mui/material';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { LogService } from '../../services/logs';
-import { CreateLogDto, LogType } from '../../types/logs';
-import { LogType as BackendLogType } from '../../types/log';
+import { getProjects } from '../../services/projects';
+import { CreateLogDto } from '../../types/logs';
+import { Project } from '../../types/project';
+import { LogType, LogCreate, Log } from '../../types/log';
 
 interface CreateLogDialogProps {
   open: boolean;
@@ -24,95 +27,110 @@ interface CreateLogDialogProps {
 const CreateLogDialog: React.FC<CreateLogDialogProps> = ({ open, onClose }) => {
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [type, setType] = React.useState<LogType>('custom');
-  const [projectId, setProjectId] = React.useState('');
+  const [type, setType] = React.useState<LogType>(LogType.OTHER);
+  const [projectId, setProjectId] = React.useState<string>('');
   const queryClient = useQueryClient();
 
-  const createLog = useMutation({
-    mutationFn: (newLog: CreateLogDto) => LogService.createLog({
-      title: newLog.name,
-      content: newLog.description,
-      log_type: newLog.type as unknown as BackendLogType,
-      project_id: newLog.projectId ? parseInt(newLog.projectId) : undefined
-    }),
+  const { data: projects = [], isLoading: projectsLoading } = useQuery<Project[]>({
+    queryKey: ['projects'],
+    queryFn: () => getProjects()
+  });
+
+  const createLogMutation = useMutation({
+    mutationFn: (newLog: LogCreate) => LogService.createLog(newLog),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['logs'] });
-      handleClose();
+      onClose();
+      resetForm();
     }
   });
 
-  const handleClose = () => {
+  const resetForm = () => {
     setName('');
     setDescription('');
-    setType('custom');
+    setType(LogType.OTHER);
     setProjectId('');
-    onClose();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !type) return;
-
-    createLog.mutate({
-      name,
-      description,
-      type,
-      projectId
+    createLogMutation.mutate({
+      title: name,
+      content: description,
+      log_type: type,
+      project_id: projectId ? parseInt(projectId) : undefined
     });
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>Create New Log</DialogTitle>
         <DialogContent>
           <TextField
-            fullWidth
+            autoFocus
+            margin="dense"
             label="Log Name"
+            fullWidth
             value={name}
             onChange={(e) => setName(e.target.value)}
-            margin="normal"
             required
           />
           <TextField
-            fullWidth
+            margin="dense"
             label="Description"
+            fullWidth
+            multiline
+            rows={4}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            margin="normal"
-            multiline
-            rows={3}
+            required
           />
-          <FormControl fullWidth margin="normal">
-            <InputLabel>Type</InputLabel>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Log Type</InputLabel>
             <Select
               value={type}
               onChange={(e) => setType(e.target.value as LogType)}
-              label="Type"
+              label="Log Type"
               required
             >
-              <MenuItem value="changelog">Changelog</MenuItem>
-              <MenuItem value="devlog">Development Log</MenuItem>
-              <MenuItem value="buglog">Bug Log</MenuItem>
-              <MenuItem value="custom">Custom</MenuItem>
+              <MenuItem value={LogType.NOTE}>Note</MenuItem>
+              <MenuItem value={LogType.PROGRESS}>Progress</MenuItem>
+              <MenuItem value={LogType.ISSUE}>Issue</MenuItem>
+              <MenuItem value={LogType.DECISION}>Decision</MenuItem>
+              <MenuItem value={LogType.OTHER}>Other</MenuItem>
             </Select>
           </FormControl>
-          <TextField
-            fullWidth
-            label="Project ID"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            margin="normal"
-          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Project (Optional)</InputLabel>
+            <Select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              label="Project (Optional)"
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {(projects as Project[]).map((project: Project) => (
+                <MenuItem key={project.id} value={project.id.toString()}>
+                  {project.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={onClose}>Cancel</Button>
           <Button 
             type="submit" 
             variant="contained" 
-            disabled={!name || !type || createLog.isPending}
+            disabled={createLogMutation.isPending}
           >
-            Create
+            {createLogMutation.isPending ? (
+              <CircularProgress size={24} />
+            ) : (
+              'Create'
+            )}
           </Button>
         </DialogActions>
       </form>

@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
-import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -17,23 +16,17 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
 
-    # Relationships
-    tasks = relationship("Task", back_populates="user", cascade="all, delete")
-    password_resets = relationship("PasswordReset", back_populates="user")
-    profile = relationship("Profile", back_populates="user", uselist=False)
-    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
-    
-    # New relationships for personal data tracking
-    activities = relationship("Activity", back_populates="user", cascade="all, delete")
-    journal_entries = relationship("JournalEntry", back_populates="user", cascade="all, delete")
-    logs = relationship("Log", back_populates="user", cascade="all, delete")
-    
-    # New relationships for personal development
-    goals = relationship("Goal", back_populates="user", cascade="all, delete")
-    habits = relationship("Habit", back_populates="user", cascade="all, delete")
-    projects = relationship("Project", back_populates="owner", cascade="all, delete")
-    ideas = relationship("Idea", back_populates="user", cascade="all, delete")
-    concept_notes = relationship("ConceptNote", back_populates="user", cascade="all, delete")
+    # Essential relationships for auth
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    # Core functionality relationships
+    tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    activities = relationship("Activity", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    journal_entries = relationship("JournalEntry", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan", lazy='dynamic')
+    ideas = relationship("Idea", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    concept_notes = relationship("ConceptNote", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    logs = relationship("Log", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
+    log_entries = relationship("LogEntry", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
 
     def __repr__(self):
         return f"<User {self.username}>"

@@ -16,6 +16,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+# Import all models here
+from models.user import User
+from models.task import Task
+from models.refresh_token import RefreshToken
+
+# Create all tables
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
 # Dependency
 def get_db():
     db = SessionLocal()

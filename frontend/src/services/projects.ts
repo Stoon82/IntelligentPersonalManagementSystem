@@ -47,3 +47,16 @@ export const updateProjectProgress = async (projectId: number, progress: number)
     const response = await apiClient.put(`${PROJECTS_URL}/${projectId}/progress`, { progress });
     return response.data;
 };
+
+export const ProjectService = {
+    getProjects,
+    getProject,
+    createProject,
+    updateProject,
+    deleteProject,
+    addTeamMember,
+    removeTeamMember,
+    updateProjectProgress
+};
+
+export type { GetProjectsParams };

@@ -40,23 +40,40 @@ logger = logging.getLogger(__name__)
 def register(user: UserCreate, response: Response, db: Session = Depends(get_db)):
     try:
         logger.info(f"Starting registration process for user: {user.username}")
+        logger.debug(f"Registration request data - username: {user.username}, email: {user.email}")
         
         # Check if username exists
-        existing_username = db.query(User).filter(User.username == user.username).first()
-        if existing_username:
-            logger.warning(f"Registration failed: Username {user.username} already exists")
+        try:
+            existing_username = db.query(User).filter(User.username == user.username).first()
+            logger.debug(f"Username check completed. Exists: {existing_username is not None}")
+            if existing_username:
+                logger.warning(f"Registration failed: Username {user.username} already exists")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Username already registered"
+                )
+        except Exception as e:
+            logger.error(f"Error checking username existence: {str(e)}", exc_info=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error while checking username: {str(e)}"
             )
         
         # Check if email exists
-        existing_email = db.query(User).filter(User.email == user.email).first()
-        if existing_email:
-            logger.warning(f"Registration failed: Email {user.email} already exists")
+        try:
+            existing_email = db.query(User).filter(User.email == user.email).first()
+            logger.debug(f"Email check completed. Exists: {existing_email is not None}")
+            if existing_email:
+                logger.warning(f"Registration failed: Email {user.email} already exists")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+        except Exception as e:
+            logger.error(f"Error checking email existence: {str(e)}", exc_info=True)
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error while checking email: {str(e)}"
             )
         
         # Create new user
@@ -70,28 +87,27 @@ def register(user: UserCreate, response: Response, db: Session = Depends(get_db)
                 email=user.email,
                 full_name=user.full_name,
                 hashed_password=hashed_password,
-                created_at=datetime.utcnow(),
-                tasks=[],
-                password_resets=[],
-                refresh_tokens=[],
-                activities=[],
-                journal_entries=[],
-                goals=[],
-                habits=[],
-                projects=[],
-                ideas=[],
-                concept_notes=[]
+                created_at=datetime.utcnow()
             )
             
             logger.debug("Adding user to database...")
             db.add(db_user)
             db.commit()
+            logger.debug("User committed to database successfully")
             db.refresh(db_user)
             logger.info(f"Successfully created user: {user.username}")
             
             # Create tokens
             logger.debug("Generating authentication tokens...")
-            access_token, refresh_token, expires_at = create_tokens(db_user, db)
+            try:
+                access_token, refresh_token, expires_at = create_tokens(db_user, db)
+                logger.debug("Tokens generated successfully")
+            except Exception as e:
+                logger.error(f"Error generating tokens: {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error generating authentication tokens: {str(e)}"
+                )
             
             # Set cookie for client-side storage
             logger.debug("Setting authentication cookie...")

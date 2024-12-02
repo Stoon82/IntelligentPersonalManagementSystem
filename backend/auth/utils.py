@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import secrets
+import logging
 
 from config import get_settings
 from database import get_db
@@ -15,6 +16,7 @@ from models.refresh_token import RefreshToken
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
+logger = logging.getLogger(__name__)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -54,18 +56,32 @@ def store_refresh_token(db: Session, user_id: int, refresh_token: str) -> None:
 
 def create_tokens(user: User, db: Session) -> Tuple[str, str, datetime]:
     """Create both access and refresh tokens."""
-    # Create access token
-    access_token_data = {
-        "sub": user.username,
-    }
-    access_token = create_access_token(access_token_data)
-    access_token_expires = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    # Create refresh token
-    refresh_token = create_refresh_token(user.id)
-    store_refresh_token(db, user.id, refresh_token)
-    
-    return access_token, refresh_token, access_token_expires
+    try:
+        # Create access token
+        access_token_data = {
+            "sub": user.username,
+            "user_id": user.id
+        }
+        access_token = create_access_token(access_token_data)
+        access_token_expires = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+        # Create and store refresh token
+        refresh_token = create_refresh_token(user.id)
+        try:
+            store_refresh_token(db, user.id, refresh_token)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to store refresh token: {str(e)}")
+            raise
+        
+        return access_token, refresh_token, access_token_expires
+    except Exception as e:
+        logger.error(f"Error creating tokens: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create authentication tokens"
+        )
 
 def verify_refresh_token(refresh_token: str, db: Session) -> Optional[User]:
     """Verify refresh token and return associated user."""

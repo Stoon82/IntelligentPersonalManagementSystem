@@ -68,11 +68,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Login error:', error);
             clearAuthState();
             
-            // Provide more specific error messages
-            if (error.response?.status === 401) {
-                throw new Error('Invalid username or password');
-            } else if (error.response?.status === 422) {
-                throw new Error('Please check your login credentials');
+            if (error.response) {
+                // Handle specific API error responses
+                switch (error.response.status) {
+                    case 401:
+                        throw new Error('Invalid username or password');
+                    case 422:
+                        throw new Error('Please check your login credentials');
+                    case 429:
+                        throw new Error('Too many login attempts. Please try again later');
+                    default:
+                        throw new Error(`Server error: ${error.response.data?.detail || 'Unknown error'}`);
+                }
+            } else if (error.request) {
+                // Handle network errors
+                throw new Error('Unable to connect to server. Please check your internet connection');
             } else {
                 throw new Error('Login failed. Please try again.');
             }

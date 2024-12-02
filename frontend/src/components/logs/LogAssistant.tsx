@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Paper, Typography, IconButton } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Box, Paper, Typography } from '@mui/material';
 import QuickEntryForm from './QuickEntryForm';
 import RecentLogs from './RecentLogs';
 import CreateLogDialog from './CreateLogDialog';
@@ -31,13 +30,6 @@ export const LogAssistant: React.FC = () => {
     <Box sx={{ mb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">Log Assistant</Typography>
-        <IconButton 
-          color="primary" 
-          onClick={() => setCreateDialogOpen(true)}
-          sx={{ ml: 1 }}
-        >
-          <AddIcon />
-        </IconButton>
       </Box>
 
       <Paper sx={{ p: 2, mb: 2 }}>

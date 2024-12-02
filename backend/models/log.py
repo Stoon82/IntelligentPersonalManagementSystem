@@ -30,3 +30,4 @@ class Log(Base):
     # Relationships
     user = relationship("User", back_populates="logs")
     project = relationship("Project", back_populates="logs")
+    entries = relationship("LogEntry", back_populates="log", cascade="all, delete-orphan")

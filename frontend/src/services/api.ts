@@ -25,104 +25,64 @@ const api = axios.create({
     },
     withCredentials: true, // Required for cookies
     timeout: 30000, // 30 seconds
-    xsrfCookieName: 'csrftoken',
-    xsrfHeaderName: 'X-CSRFToken',
 });
+
+// Add request interceptor for authentication and debugging
+api.interceptors.request.use(
+    (config) => {
+        // Log request for debugging
+        console.log('API Request:', {
+            method: config.method,
+            url: config.url,
+            headers: config.headers,
+        });
+
+        // Add authentication token if available
+        const token = localStorage.getItem('token');
+        if (token && config.headers) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        return config;
+    },
+    (error) => {
+        console.error('Request error:', error);
+        return Promise.reject(error);
+    }
+);
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // Handle 401 errors and token refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                const refreshToken = localStorage.getItem('refresh_token');
+                if (refreshToken) {
+                    const response = await auth.refreshToken(refreshToken);
+                    localStorage.setItem('token', response.access_token);
+                    if (response.refresh_token) {
+                        localStorage.setItem('refresh_token', response.refresh_token);
+                    }
+                    return api(originalRequest);
+                }
+            } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
 
 // Extended type for request config with _retry property
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
     _retry?: boolean;
 }
-
-// Add request interceptor for authentication and debugging
-api.interceptors.request.use(
-    (config) => {
-        // Add authentication token if available
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Log request details in development only
-        if (process.env.NODE_ENV === 'development') {
-            console.log('API Request:', {
-                method: config.method?.toUpperCase(),
-                url: `${config.baseURL || ''}${config.url || ''}`,
-                headers: config.headers,
-            });
-        }
-        
-        return config;
-    },
-    (error) => {
-        console.error('Request interceptor error:', error);
-        return Promise.reject(error);
-    }
-);
-
-// Add response interceptor for debugging and token refresh
-api.interceptors.response.use(
-    (response) => {
-        // Log response in development only
-        if (process.env.NODE_ENV === 'development') {
-            console.log('API Response:', {
-                status: response.status,
-                url: response.config.url,
-            });
-        }
-        return response;
-    },
-    async (error: AxiosError) => {
-        const originalRequest = error.config as ExtendedAxiosRequestConfig;
-        
-        // Don't retry if:
-        // 1. This is already a retry
-        // 2. No originalRequest exists
-        // 3. This is an auth endpoint (except profile)
-        if (
-            !originalRequest || 
-            originalRequest._retry || 
-            (originalRequest.url?.startsWith('/api/auth/') && originalRequest.url !== '/api/auth/profile')
-        ) {
-            return Promise.reject(error);
-        }
-
-        // Only attempt refresh on 401 errors
-        if (error.response?.status === 401) {
-            originalRequest._retry = true;
-            
-            try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (!refreshToken) {
-                    throw new Error('No refresh token available');
-                }
-                
-                // Try to refresh the token
-                const response = await auth.refreshToken(refreshToken);
-                
-                // Store new tokens
-                localStorage.setItem('token', response.access_token);
-                if (response.refresh_token) {
-                    localStorage.setItem('refresh_token', response.refresh_token);
-                }
-                
-                // Update the authorization header
-                originalRequest.headers['Authorization'] = `Bearer ${response.access_token}`;
-                
-                // Retry the original request
-                return api(originalRequest);
-            } catch (refreshError) {
-                // Clear tokens and redirect to login
-                localStorage.removeItem('token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
-                return Promise.reject(refreshError);
-            }
-        }
-        
-        return Promise.reject(error);
-    }
-);
 
 // API functions
 export const register = async (data: RegisterData): Promise<AuthResponse> => {
