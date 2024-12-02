@@ -1,0 +1,24 @@
+2024-11-25 12:47:50,260 - __main__ - INFO - Starting authentication endpoint tests...
+2024-11-25 12:47:50,269 - __main__ - INFO - 
+=== Starting Authentication Flow Test ===
+2024-11-25 12:47:50,269 - __main__ - INFO - 
+1. Testing Registration
+2024-11-25 12:47:50,269 - __main__ - INFO - Testing registration endpoint: POST http://localhost:8000/api/v1/auth/register
+2024-11-25 12:47:50,270 - __main__ - DEBUG - Request data: {
+  "username": "testuser_20241125_124750",
+  "email": "testuser_20241125_124750@example.com",
+  "password": "TestPass123!",
+  "full_name": "Test User"
+}
+2024-11-25 12:47:50,275 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): localhost:8000
+2024-11-25 12:47:52,300 - urllib3.connectionpool - DEBUG - http://localhost:8000 "POST /api/v1/auth/register HTTP/11" 404 22
+2024-11-25 12:47:52,300 - __main__ - DEBUG - Status Code: 404
+2024-11-25 12:47:52,300 - __main__ - DEBUG - Response Headers: {
+  "date": "Mon, 25 Nov 2024 11:47:51 GMT",
+  "server": "uvicorn",
+  "content-length": "22",
+  "content-type": "application/json"
+}
+2024-11-25 12:47:52,300 - __main__ - DEBUG - Response Body: {"detail":"Not Found"}
+2024-11-25 12:47:52,329 - __main__ - INFO - 
+=== Test Summary ===
