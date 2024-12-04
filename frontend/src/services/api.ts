@@ -49,6 +49,8 @@ api.interceptors.request.use(
         const token = localStorage.getItem('token');
         if (token && config.headers) {
             config.headers['Authorization'] = `Bearer ${token}`;
+            // Ensure credentials are included
+            config.withCredentials = true;
         }
 
         // Log request for debugging
@@ -67,50 +69,106 @@ api.interceptors.request.use(
 );
 
 // Add response interceptor for error handling and token refresh
+let isRefreshing = false;
+let failedQueue: Array<{
+    resolve: (value?: unknown) => void;
+    reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any | null, token: string | null = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config as ExtendedAxiosRequestConfig;
 
-        // Handle 401 Unauthorized errors
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
+        // Don't retry if:
+        // 1. It's not a 401 error
+        // 2. It's already been retried
+        // 3. It's a refresh token request
+        // 4. It's a login request
+        if (
+            error.response?.status !== 401 ||
+            originalRequest._retry ||
+            originalRequest.url === API_ROUTES.AUTH.REFRESH ||
+            originalRequest.url === API_ROUTES.AUTH.LOGIN
+        ) {
+            return Promise.reject(error);
+        }
+
+        if (isRefreshing) {
+            try {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(token => {
+                    if (token && originalRequest.headers) {
+                        originalRequest.headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    return api(originalRequest);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            } catch (err) {
+                return Promise.reject(err);
+            }
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+            const refreshToken = localStorage.getItem('refresh_token');
+            if (!refreshToken) {
+                processQueue(new Error('No refresh token available'), null);
+                localStorage.removeItem('token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/login';
+                return Promise.reject(new Error('No refresh token available'));
+            }
 
             try {
-                // Try to refresh the token
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (!refreshToken) {
-                    throw new Error('No refresh token available');
-                }
-
                 const response = await auth.refreshToken(refreshToken);
-                localStorage.setItem('token', response.access_token);
+                const newToken = response.access_token;
+                
+                localStorage.setItem('token', newToken);
                 if (response.refresh_token) {
                     localStorage.setItem('refresh_token', response.refresh_token);
                 }
 
-                // Retry the original request with new token
                 if (originalRequest.headers) {
-                    originalRequest.headers['Authorization'] = `Bearer ${response.access_token}`;
+                    originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
                 }
+
+                processQueue(null, newToken);
                 return api(originalRequest);
             } catch (refreshError) {
-                // If refresh fails, clear auth state and redirect to login
+                processQueue(refreshError, null);
                 localStorage.removeItem('token');
                 localStorage.removeItem('refresh_token');
-                window.location.href = '/login';
+                // Only redirect if we're not already on the login page
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
                 return Promise.reject(refreshError);
             }
+        } catch (err) {
+            processQueue(err, null);
+            localStorage.removeItem('token');
+            localStorage.removeItem('refresh_token');
+            window.location.href = '/login';
+            return Promise.reject(err);
+        } finally {
+            isRefreshing = false;
         }
-
-        // Handle network errors
-        if (!error.response) {
-            console.error('Network error:', error);
-            return Promise.reject(new Error('Network error. Please check your connection.'));
-        }
-
-        // Handle other errors
-        return Promise.reject(error);
     }
 );
 

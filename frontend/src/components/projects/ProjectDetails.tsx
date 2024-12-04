@@ -42,6 +42,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
         target_end_date: undefined,
         budget: undefined,
         tags: [],
+        progress: 0,
     });
 
     // Fetch project data
@@ -54,14 +55,15 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
     useEffect(() => {
         if (project) {
             setFormData({
-                title: project.title,
-                description: project.description,
-                status: project.status,
-                priority: project.priority,
+                title: project.title || '',
+                description: project.description || '',
+                status: project.status || ProjectStatus.PLANNING,
+                priority: project.priority || ProjectPriority.LOW,
                 target_start_date: project.target_start_date ? new Date(project.target_start_date) : undefined,
                 target_end_date: project.target_end_date ? new Date(project.target_end_date) : undefined,
-                budget: project.budget,
-                tags: project.tags,
+                budget: project.budget || undefined,
+                tags: project.tags || [],
+                progress: project.progress || 0,
             });
         }
     }, [project]);
@@ -169,19 +171,21 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                     </Box>
 
                     <Box mb={4}>
-                        <Typography variant="h6" gutterBottom>
-                            Progress
-                        </Typography>
-                        <Box display="flex" alignItems="center" gap={2}>
-                            <LinearProgress
-                                variant="determinate"
-                                value={project.progress}
-                                sx={{ flexGrow: 1 }}
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                                {project.progress}%
-                            </Typography>
-                        </Box>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Typography variant="subtitle2" color="text.secondary">
+                                    Progress
+                                </Typography>
+                                <LinearProgress 
+                                    variant="determinate" 
+                                    value={project.progress || 0} 
+                                    sx={{ flexGrow: 1 }} 
+                                />
+                                <Typography variant="body2">
+                                    {project.progress || 0}%
+                                </Typography>
+                            </Box>
+                        </Grid>
                     </Box>
 
                     <form onSubmit={handleSubmit}>
@@ -215,7 +219,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                                 <FormControl fullWidth>
                                     <InputLabel>Status</InputLabel>
                                     <Select
-                                        value={formData.status}
+                                        value={formData.status || ProjectStatus.PLANNING}
                                         onChange={(e) =>
                                             setFormData({
                                                 ...formData,
@@ -236,7 +240,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                                 <FormControl fullWidth>
                                     <InputLabel>Priority</InputLabel>
                                     <Select
-                                        value={formData.priority}
+                                        value={formData.priority || ProjectPriority.LOW}
                                         onChange={(e) =>
                                             setFormData({
                                                 ...formData,
@@ -256,7 +260,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                             <Grid item xs={12} sm={6}>
                                 <DatePicker
                                     label="Target Start Date"
-                                    value={formData.target_start_date}
+                                    value={formData.target_start_date || null}
                                     onChange={(date: Date | null) =>
                                         setFormData({
                                             ...formData,
@@ -274,7 +278,7 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                             <Grid item xs={12} sm={6}>
                                 <DatePicker
                                     label="Target End Date"
-                                    value={formData.target_end_date}
+                                    value={formData.target_end_date || null}
                                     onChange={(date: Date | null) =>
                                         setFormData({
                                             ...formData,
@@ -294,11 +298,11 @@ export const ProjectDetails: React.FC<ProjectDetailsProps> = () => {
                                     fullWidth
                                     type="number"
                                     label="Budget"
-                                    value={formData.budget || ''}
+                                    value={formData.budget ?? ''}
                                     onChange={(e) =>
                                         setFormData({
                                             ...formData,
-                                            budget: parseFloat(e.target.value),
+                                            budget: e.target.value ? parseFloat(e.target.value) : undefined,
                                         })
                                     }
                                 />

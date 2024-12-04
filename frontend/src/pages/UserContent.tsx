@@ -388,14 +388,25 @@ export default function UserContent() {
                 <ListItemText
                   primary={log.title}
                   secondary={
-                    <>
-                      <Typography variant="body2" color="textSecondary">
+                    <Box component="span">
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        color="textSecondary"
+                        display="block"
+                      >
                         {log.content}
                       </Typography>
-                      <Typography variant="caption" color="textSecondary">
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color="textSecondary"
+                        display="block"
+                        sx={{ mt: 1 }}
+                      >
                         Created: {format(new Date(log.created_at), 'PPpp')}
                       </Typography>
-                    </>
+                    </Box>
                   }
                 />
                 <ListItemSecondaryAction>

@@ -13,6 +13,7 @@ import {
     Task as TaskIcon,
     Folder as ProjectIcon,
     Person as PersonIcon,
+    Book as JournalIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -27,6 +28,7 @@ export const NavBar: React.FC = () => {
         { path: '/', label: 'Dashboard', icon: <HomeIcon /> },
         { path: '/projects', label: 'Projects', icon: <ProjectIcon /> },
         { path: '/tasks', label: 'Tasks', icon: <TaskIcon /> },
+        { path: '/journal', label: 'Journal', icon: <JournalIcon /> },
     ];
 
     return (

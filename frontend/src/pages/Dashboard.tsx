@@ -7,6 +7,7 @@ import {
     Schedule as UpcomingIcon,
     TrendingUp as TrendingIcon,
     Add as AddIcon,
+    Book as JournalIcon,
 } from '@mui/icons-material';
 import { useTasks } from '../hooks/useTasks';
 import { useTaskStats } from '../hooks/useTaskStats';
@@ -18,12 +19,14 @@ import { ActionButtons } from '../components/dashboard/ActionButtons';
 import { RecentProjects } from '../components/dashboard/RecentProjects';
 import LogAssistant from '../components/logs/LogAssistant';
 import { LogForm } from '../components/LogForm';
+import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
     const { tasks, isLoading: isLoadingTasks, error: tasksError } = useTasks();
     const { createLog, isCreating } = useLogs();
     const stats = useTaskStats(tasks || []);
     const [isLogFormOpen, setIsLogFormOpen] = useState(false);
+    const navigate = useNavigate();
 
     const handleCreateLog = async (logData: any) => {
         await createLog(logData);
@@ -99,6 +102,44 @@ export const Dashboard: React.FC = () => {
                                 color="#ff9800"
                             />
                         </Grid>
+
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardHeader 
+                                    title={
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            <JournalIcon />
+                                            <Typography variant="h6">Journal</Typography>
+                                        </Box>
+                                    }
+                                    action={
+                                        <Button
+                                            variant="contained"
+                                            color="secondary"
+                                            startIcon={<AddIcon />}
+                                            onClick={() => navigate('/journal')}
+                                        >
+                                            New Entry
+                                        </Button>
+                                    }
+                                />
+                                <CardContent>
+                                    <Typography variant="body1" color="textSecondary" paragraph>
+                                        Record your thoughts, track your mood, and reflect on your journey.
+                                    </Typography>
+                                    <Box display="flex" gap={2}>
+                                        <Button
+                                            variant="outlined"
+                                            color="secondary"
+                                            onClick={() => navigate('/journal')}
+                                        >
+                                            View Journal
+                                        </Button>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
                         <Grid item xs={12} md={6}>
                             <TaskDistributionChart
                                 title="Tasks by Status"

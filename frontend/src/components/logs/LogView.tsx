@@ -134,9 +134,11 @@ export const LogView: React.FC<LogViewProps> = ({ logId }) => {
                   </Box>
                 }
                 secondary={
-                  <Typography variant="caption" color="text.secondary">
-                    {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
-                  </Typography>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                    </Typography>
+                  </Box>
                 }
               />
             </ListItem>

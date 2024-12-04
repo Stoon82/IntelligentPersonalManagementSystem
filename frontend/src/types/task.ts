@@ -19,8 +19,8 @@ export interface TaskCreate {
     description?: string;
     status?: TaskStatus;
     priority?: TaskPriority;
-    due_date?: string;
-    project_id: number;
+    due_date?: string | null;
+    project_id?: number | null;
 }
 
 export interface TaskUpdate extends Partial<TaskCreate> {

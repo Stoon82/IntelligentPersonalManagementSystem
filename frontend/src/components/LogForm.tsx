@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,7 +20,7 @@ interface FormData {
   title: string;
   content: string;
   log_type: LogType;
-  project_id: number | undefined;
+  project_id: number | null;
 }
 
 interface LogFormProps {
@@ -40,26 +40,86 @@ export const LogForm: React.FC<LogFormProps> = ({
   projectId,
   initialData,
 }) => {
-  const [formData, setFormData] = useState<FormData>({
-    title: initialData?.title || '',
-    content: initialData?.content || '',
-    log_type: initialData?.log_type || LogType.NOTE,
-    project_id: projectId,
+  console.log('[LogForm] Rendering with props:', {
+    open,
+    isSubmitting,
+    projectId: projectId ?? '(null)',
+    initialData: initialData ?? '(undefined)',
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<LogType>
+  // Define default form state
+  const defaultFormState: FormData = {
+    title: '',
+    content: '',
+    log_type: LogType.NOTE,
+    project_id: null
+  };
+
+  // Initialize form data with proper type checking
+  const getInitialState = React.useCallback((): FormData => {
+    if (!initialData) {
+      return {
+        ...defaultFormState,
+        project_id: projectId ?? null
+      };
+    }
+
+    return {
+      title: initialData.title ?? defaultFormState.title,
+      content: initialData.content ?? defaultFormState.content,
+      log_type: initialData.log_type ?? defaultFormState.log_type,
+      project_id: projectId ?? defaultFormState.project_id
+    };
+  }, [initialData, projectId]);
+
+  const [formData, setFormData] = useState<FormData>(getInitialState);
+
+  useEffect(() => {
+    console.log('[LogForm] Props changed, updating formData');
+    const newState = getInitialState();
+    console.log('[LogForm] New form state:', newState);
+    setFormData(newState);
+  }, [getInitialState]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    console.log('[LogForm] Input changing:', {
+      name,
+      oldValue: formData[name as keyof FormData],
+      newValue: value,
+    });
+    
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: value ?? ''
     }));
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent) => {
+    console.log('[LogForm] Select changing:', {
+      oldValue: formData.log_type,
+      newValue: e.target.value,
+      type: typeof e.target.value,
+    });
+    
+    const newValue = e.target.value;
+    // Only update if we have a valid value
+    if (typeof newValue === 'string' && Object.values(LogType).includes(newValue as LogType)) {
+      setFormData((prev) => ({
+        ...prev,
+        log_type: newValue as LogType
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      project_id: formData.project_id || undefined,
+    });
   };
 
   return (
@@ -72,30 +132,31 @@ export const LogForm: React.FC<LogFormProps> = ({
           <Box display="flex" flexDirection="column" gap={2} mt={1}>
             <TextField
               fullWidth
-              margin="normal"
               label="Title"
               name="title"
               value={formData.title}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
+              size="medium"
             />
             <TextField
               fullWidth
-              margin="normal"
               label="Content"
               name="content"
               multiline
               rows={4}
               value={formData.content}
-              onChange={handleChange}
+              onChange={handleInputChange}
               required
+              size="medium"
             />
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Type</InputLabel>
-              <Select<LogType>
+            <FormControl fullWidth required size="medium">
+              <InputLabel id="log-type-label">Type</InputLabel>
+              <Select
+                labelId="log-type-label"
                 name="log_type"
                 value={formData.log_type}
-                onChange={handleChange}
+                onChange={handleSelectChange}
                 label="Type"
               >
                 {Object.values(LogType).map((type) => (
@@ -108,12 +169,15 @@ export const LogForm: React.FC<LogFormProps> = ({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose} size="large">
+            Cancel
+          </Button>
           <Button
             type="submit"
             variant="contained"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !formData.title.trim() || !formData.content.trim()}
             startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+            size="large"
           >
             {initialData ? 'Update' : 'Create'}
           </Button>

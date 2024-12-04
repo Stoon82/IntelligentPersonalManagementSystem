@@ -45,17 +45,38 @@ def get_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(Project).filter(Project.owner_id == current_user.id)
-    
-    if status:
-        query = query.filter(Project.status == status)
-    
-    if sort_by:
+    try:
+        query = db.query(Project).filter(Project.owner_id == current_user.id)
+        
+        if status:
+            query = query.filter(Project.status == status)
+        
+        # Default sorting by updated_at if no sort_by is provided
+        if not sort_by:
+            sort_by = "updated_at"
+        
+        # Ensure the sort_by column exists
+        if not hasattr(Project, sort_by):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sort_by parameter: {sort_by}"
+            )
+        
+        # Apply sorting
         order_func = desc if sort_order == "desc" else asc
-        if hasattr(Project, sort_by):
-            query = query.order_by(order_func(getattr(Project, sort_by)))
-    
-    return query.offset(skip).limit(limit).all()
+        query = query.order_by(order_func(getattr(Project, sort_by)))
+        
+        # Execute query with pagination
+        projects = query.offset(skip).limit(limit).all()
+        return projects
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving projects: {str(e)}"
+        )
 
 @router.get("/{project_id}", response_model=ProjectSchema)
 def get_project(
@@ -146,29 +167,48 @@ def get_project_members(
     return members
 
 @router.get("/{project_id}/activities", response_model=List[ActivitySchema])
-def get_project_activities(
+async def get_project_activities(
     project_id: int,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to view project activities")
-    
-    activities = (
-        db.query(Activity)
-        .filter(Activity.project_id == project_id)
-        .order_by(desc(Activity.created_at))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    return activities
+    try:
+        # Check if project exists
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Check if user has access to project
+        if project.owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to view project activities")
+        
+        # Get activities with error handling
+        activities = (
+            db.query(Activity)
+            .filter(Activity.project_id == project_id)
+            .order_by(desc(Activity.timestamp))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        # Log activity details for debugging
+        print(f"Found {len(activities)} activities")
+        for activity in activities:
+            print(f"Activity: id={activity.id}, type={activity.type}, data={activity.data}, timestamp={activity.timestamp}")
+        
+        return activities
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in get_project_activities: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch project activities: {str(e)}"
+        )
 
 @router.post("/{project_id}/ideas/{idea_id}")
 def link_idea_to_project(

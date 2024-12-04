@@ -27,6 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check authentication status on mount
     useEffect(() => {
+        let mounted = true;
+        
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
             if (!token) {
@@ -36,17 +38,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             try {
                 const user = await auth.getProfile();
-                setUser(user);
-            } catch (error) {
+                if (mounted) {
+                    setUser(user);
+                }
+            } catch (error: any) {
                 console.error('Auth check failed:', error);
-                clearAuthState();
-                navigate('/login');
+                if (mounted) {
+                    if (error.response?.status === 401) {
+                        // Try to refresh token
+                        const refreshToken = localStorage.getItem('refresh_token');
+                        if (refreshToken) {
+                            try {
+                                const response = await auth.refreshToken(refreshToken);
+                                localStorage.setItem('token', response.access_token);
+                                if (response.refresh_token) {
+                                    localStorage.setItem('refresh_token', response.refresh_token);
+                                }
+                                // Retry getting profile
+                                const user = await auth.getProfile();
+                                if (mounted) {
+                                    setUser(user);
+                                }
+                                return;
+                            } catch (refreshError) {
+                                console.error('Token refresh failed:', refreshError);
+                            }
+                        }
+                    }
+                    clearAuthState();
+                    navigate('/login');
+                }
             } finally {
-                setLoading(false);
+                if (mounted) {
+                    setLoading(false);
+                }
             }
         };
 
         checkAuth();
+        return () => {
+            mounted = false;
+        };
     }, [navigate, clearAuthState]);
 
     const login = useCallback(async (credentials: LoginCredentials) => {
@@ -69,7 +101,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             clearAuthState();
             
             if (error.response) {
-                // Handle specific API error responses
                 switch (error.response.status) {
                     case 401:
                         throw new Error('Invalid username or password');
@@ -81,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         throw new Error(`Server error: ${error.response.data?.detail || 'Unknown error'}`);
                 }
             } else if (error.request) {
-                // Handle network errors
                 throw new Error('Unable to connect to server. Please check your internet connection');
             } else {
                 throw new Error('Login failed. Please try again.');

@@ -22,13 +22,13 @@ class ProjectUpdate(BaseModel):
 class Project(ProjectBase):
     id: int
     owner_id: int
-    start_date: datetime
+    start_date: Optional[datetime] = None
     actual_end_date: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ProjectMemberBase(BaseModel):
     role: str = Field(..., min_length=1, max_length=50)
@@ -42,7 +42,7 @@ class ProjectMember(ProjectMemberBase):
     id: int
     user_id: int
     project_id: int
-    joined_at: datetime
+    joined_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

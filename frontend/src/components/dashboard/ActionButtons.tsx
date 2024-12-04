@@ -16,6 +16,7 @@ import {
     Folder as ProjectIcon,
     Lightbulb as IdeaIcon,
     Close as CloseIcon,
+    Book as JournalIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createIdea } from '../../services/ideas';
@@ -62,7 +63,7 @@ export const ActionButtons: React.FC = () => {
             <Typography variant="h6" gutterBottom>
                 Quick Actions
             </Typography>
-            <Box display="flex" gap={2}>
+            <Box display="flex" gap={2} flexWrap="wrap">
                 <Button
                     variant="contained"
                     color="primary"
@@ -86,6 +87,14 @@ export const ActionButtons: React.FC = () => {
                     onClick={handleQuickIdea}
                 >
                     Quick Idea
+                </Button>
+                <Button
+                    variant="contained"
+                    startIcon={<JournalIcon />}
+                    onClick={() => navigate('/journal')}
+                    color="secondary"
+                >
+                    New Journal Entry
                 </Button>
             </Box>
 

@@ -11,6 +11,7 @@ import UserContent from 'pages/UserContent';
 import { Login } from 'components/auth/Login';
 import { Register } from 'components/auth/Register';
 import { useAuth } from 'contexts/AuthContext';
+import Journal from 'pages/Journal';
 
 function App() {
     const { user } = useAuth();
@@ -33,6 +34,7 @@ function App() {
                 <Route path="projects/:id" element={<ProjectDetail />} />
                 <Route path="tasks" element={<Tasks />} />
                 <Route path="ideas" element={<Ideas />} />
+                <Route path="journal" element={<Journal />} />
                 <Route path="content" element={<UserContent />} />
                 <Route path="profile" element={<Profile />} />
             </Route>

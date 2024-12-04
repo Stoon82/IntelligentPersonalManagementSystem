@@ -12,10 +12,14 @@ class ActivityCreate(ActivityBase):
 class Activity(ActivityBase):
     id: int
     user_id: int
+    project_id: int
     timestamp: datetime
-
+    
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class JournalEntryBase(BaseModel):
     content: str

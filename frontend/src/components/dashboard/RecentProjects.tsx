@@ -81,47 +81,47 @@ export const RecentProjects: React.FC = () => {
             </Box>
             <List>
                 {recentProjects.map((project) => (
-                    <ListItem
+                    <ListItem 
                         key={project.id}
-                        divider
                         sx={{
-                            cursor: 'pointer',
-                            '&:hover': {
-                                backgroundColor: 'action.hover',
-                            },
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            gap: 1,
+                            py: 2
                         }}
-                        onClick={() => navigate(`/projects/${project.id}`)}
                     >
-                        <ListItemText
-                            primary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="subtitle1">
-                                        {project.title}
-                                    </Typography>
-                                    <Chip
-                                        label={project.status.replace('_', ' ').toUpperCase()}
-                                        color={getStatusColor(project.status)}
-                                        size="small"
-                                    />
-                                </Box>
-                            }
-                            secondary={
-                                <Typography variant="caption" color="textSecondary">
-                                    Last updated: {format(new Date(project.updated_at), 'PPp')}
-                                </Typography>
-                            }
-                        />
-                        <ListItemSecondaryAction>
-                            <IconButton
-                                edge="end"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/projects/${project.id}`);
-                                }}
-                            >
-                                <OpenInNewIcon />
-                            </IconButton>
-                        </ListItemSecondaryAction>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <Typography variant="subtitle1" component="div">
+                                {project.title}
+                            </Typography>
+                            <Box>
+                                <IconButton
+                                    edge="end"
+                                    aria-label="view project"
+                                    onClick={() => navigate(`/projects/${project.id}`)}
+                                >
+                                    <OpenInNewIcon />
+                                </IconButton>
+                                <IconButton
+                                    edge="end"
+                                    aria-label="edit project"
+                                    onClick={() => navigate(`/projects/${project.id}/edit`)}
+                                >
+                                    <EditIcon />
+                                </IconButton>
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography variant="body2" color="textSecondary" component="span">
+                                Last updated: {format(new Date(project.updated_at), 'MMM d, yyyy')}
+                            </Typography>
+                            <Chip
+                                label={project.status}
+                                size="small"
+                                color={getStatusColor(project.status)}
+                            />
+                        </Box>
                     </ListItem>
                 ))}
             </List>

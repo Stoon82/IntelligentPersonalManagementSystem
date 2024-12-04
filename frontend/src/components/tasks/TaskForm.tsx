@@ -26,7 +26,7 @@ const validationSchema = yup.object({
     description: yup.string(),
     status: yup.string().required('Status is required'),
     priority: yup.string().required('Priority is required'),
-    due_date: yup.date().nullable(),
+    due_date: yup.string().nullable(),
     project_id: yup.number().nullable(),
 });
 
@@ -51,23 +51,24 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         initialData: [] as Project[]
     });
 
-    const formik = useFormik({
+    const formik = useFormik<TaskCreate>({
         initialValues: {
             title: initialData?.title || '',
             description: initialData?.description || '',
             status: initialData?.status || 'todo',
             priority: initialData?.priority || 'medium',
-            due_date: initialData?.due_date || '',
-            project_id: initialData?.project_id || null,
+            due_date: initialData?.due_date || undefined,
+            project_id: initialData?.project_id || undefined,
         },
         validationSchema,
         onSubmit: (values) => {
-            onSubmit(values as TaskCreate);
+            onSubmit(values);
         },
     });
 
-    const handleSelectChange = (field: string) => (event: SelectChangeEvent) => {
-        formik.setFieldValue(field, event.target.value);
+    const handleSelectChange = (field: string) => (event: SelectChangeEvent<string | number>) => {
+        const value = event.target.value === '' ? undefined : event.target.value;
+        formik.setFieldValue(field, value);
     };
 
     return (
@@ -103,9 +104,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                             <Select
                                 id="project_id"
                                 name="project_id"
-                                value={formik.values.project_id?.toString() || ''}
+                                value={formik.values.project_id?.toString() ?? ''}
                                 onChange={handleSelectChange('project_id')}
                                 label="Project"
+                                error={formik.touched.project_id && Boolean(formik.errors.project_id)}
                             >
                                 <MenuItem value="">No Project</MenuItem>
                                 {projects.map((project) => (
@@ -121,9 +123,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                             <Select
                                 id="status"
                                 name="status"
-                                value={formik.values.status}
+                                value={formik.values.status || 'todo'}
                                 onChange={handleSelectChange('status')}
                                 label="Status"
+                                error={formik.touched.status && Boolean(formik.errors.status)}
                             >
                                 <MenuItem value="todo">To Do</MenuItem>
                                 <MenuItem value="in_progress">In Progress</MenuItem>
@@ -136,9 +139,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                             <Select
                                 id="priority"
                                 name="priority"
-                                value={formik.values.priority}
+                                value={formik.values.priority || 'medium'}
                                 onChange={handleSelectChange('priority')}
                                 label="Priority"
+                                error={formik.touched.priority && Boolean(formik.errors.priority)}
                             >
                                 <MenuItem value="low">Low</MenuItem>
                                 <MenuItem value="medium">Medium</MenuItem>
@@ -150,11 +154,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
                             label="Due Date"
                             value={formik.values.due_date ? new Date(formik.values.due_date) : null}
                             onChange={(date) => {
-                                if (date && !isNaN(date.getTime())) {
-                                    formik.setFieldValue('due_date', date.toISOString());
-                                } else {
-                                    formik.setFieldValue('due_date', null);
-                                }
+                                formik.setFieldValue('due_date', date ? date.toISOString() : undefined);
                             }}
                             slotProps={{
                                 textField: {
