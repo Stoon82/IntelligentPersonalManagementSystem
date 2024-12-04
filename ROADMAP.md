@@ -20,6 +20,13 @@ This document outlines the planned development path for the IPMS system.
   - 🔄 File attachments
   - 🔄 Search functionality
 
+### Version 0.2.1
+- 🐛 Bug Reporting System
+  - ✅ Floating "Report Bug" button
+  - ✅ Modal for bug report submission
+  - ✅ Automatic system information and error log collection
+  - ✅ Storage in markdown format
+
 ### Version 0.3.0
 - 📋 Advanced project features
   - Timeline visualization

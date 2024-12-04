@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { BugReport } from '../BugReport';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -139,6 +140,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
                 <Toolbar />
                 {children}
+                <BugReport />
             </Box>
         </Box>
     );

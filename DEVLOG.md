@@ -32,6 +32,19 @@ This document tracks significant development decisions, progress, and technical 
   - No breaking changes
   - Backward compatible
 
+## 2024-12-04
+
+### Bug Reporting System Implementation
+- **Decision**: Implemented a bug reporting system accessible from all pages
+- **Rationale**: 
+  - Allow users to easily report issues
+  - Collect detailed system information and error logs for debugging
+- **Technical Details**:
+  - Created a floating "Report Bug" button
+  - Developed a modal overlay for bug report submission
+  - Integrated automatic system information and error log collection
+  - Stored reports in `BUG_REPORTS/BUG_REPORTS.md`
+
 ## Initial Development (Pre-2024)
 
 ### Architecture Decisions

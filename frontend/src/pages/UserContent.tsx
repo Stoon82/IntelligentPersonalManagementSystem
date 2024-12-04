@@ -110,20 +110,20 @@ export default function UserContent() {
 
   const { data: mindmaps = [], isLoading: mindmapsLoading } = useQuery({
     queryKey: ['mindmaps', selectedProjectId],
-    queryFn: () => getProjectMindmaps(selectedProjectId || 0),
-    enabled: true
+    queryFn: () => selectedProjectId ? getProjectMindmaps(selectedProjectId) : Promise.resolve([]),
+    enabled: !!selectedProjectId
   });
 
   const { data: concepts = [], isLoading: conceptsLoading } = useQuery({
     queryKey: ['concepts', selectedProjectId],
-    queryFn: () => getProjectConceptNotes(selectedProjectId || 0),
-    enabled: true
+    queryFn: () => selectedProjectId ? getProjectConceptNotes(selectedProjectId) : Promise.resolve([]),
+    enabled: !!selectedProjectId
   });
 
   const { data: ideas = [], isLoading: ideasLoading } = useQuery({
-    queryKey: ['ideas'],
-    queryFn: () => getIdeas(),
-    enabled: true
+    queryKey: ['ideas', selectedProjectId],
+    queryFn: () => getIdeas(selectedProjectId || undefined),
+    enabled: !!selectedProjectId
   });
 
   // Create mutations
@@ -431,12 +431,17 @@ export default function UserContent() {
             color="primary" 
             startIcon={<AddIcon />}
             onClick={() => setIsCreateMindmapOpen(true)}
+            disabled={!selectedProjectId}
           >
             New Mindmap
           </Button>
         </Box>
-        {mindmapsLoading ? (
+        {!selectedProjectId ? (
+          <Typography>Please select a project to view mindmaps</Typography>
+        ) : mindmapsLoading ? (
           <Typography>Loading mindmaps...</Typography>
+        ) : mindmaps.length === 0 ? (
+          <Typography>No mindmaps found. Create one to get started!</Typography>
         ) : (
           <Grid container spacing={3}>
             {mindmaps.map((mindmap: Mindmap) => (
@@ -483,20 +488,25 @@ export default function UserContent() {
             color="primary" 
             startIcon={<AddIcon />}
             onClick={() => setIsCreateNoteOpen(true)}
+            disabled={!selectedProjectId}
           >
             New Note
           </Button>
         </Box>
-        {conceptsLoading ? (
+        {!selectedProjectId ? (
+          <Typography>Please select a project to view notes</Typography>
+        ) : conceptsLoading ? (
           <Typography>Loading concepts...</Typography>
+        ) : concepts.length === 0 ? (
+          <Typography>No notes found. Create one to get started!</Typography>
         ) : (
           <List>
             {concepts.map((concept: ConceptNote) => (
               <Paper key={concept.id} sx={{ mb: 2, p: 2 }}>
                 <ListItem>
                   <ListItemText
-                    primary={concept.title}
-                    secondary={concept.content}
+                    primary={<Box component="span">{concept.title}</Box>}
+                    secondary={<Box component="span">{concept.content}</Box>}
                   />
                   <ListItemSecondaryAction>
                     <IconButton 
@@ -531,12 +541,17 @@ export default function UserContent() {
             color="primary" 
             startIcon={<AddIcon />}
             onClick={() => setIsCreateIdeaOpen(true)}
+            disabled={!selectedProjectId}
           >
             New Idea
           </Button>
         </Box>
-        {ideasLoading ? (
+        {!selectedProjectId ? (
+          <Typography>Please select a project to view ideas</Typography>
+        ) : ideasLoading ? (
           <Typography>Loading ideas...</Typography>
+        ) : ideas.length === 0 ? (
+          <Typography>No ideas found. Create one to get started!</Typography>
         ) : (
           <Grid container spacing={3}>
             {ideas.map((idea: Idea) => (

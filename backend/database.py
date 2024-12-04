@@ -23,7 +23,12 @@ from models.refresh_token import RefreshToken
 
 # Create all tables
 def init_db():
+    """Initialize the database synchronously"""
     Base.metadata.create_all(bind=engine)
+
+async def async_init_db():
+    """Initialize the database asynchronously"""
+    init_db()
 
 # Dependency
 def get_db():

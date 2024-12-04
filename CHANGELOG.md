@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development tracking
 - Concept and idea management
 - Mindmap functionality
+- Bug reporting system with modal submission form
+- Automatic collection of system information and error logs
+- Storage of bug reports in markdown format
 
 ### Changed
 - Enhanced log management with entry support

@@ -46,7 +46,7 @@ export const Ideas: React.FC = () => {
     const queryClient = useQueryClient();
     const { data: ideas = [], isLoading } = useQuery({
         queryKey: ['ideas'],
-        queryFn: getIdeas,
+        queryFn: () => getIdeas(),
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
         gcTime: 30 * 60 * 1000, // Keep data in cache for 30 minutes
     });

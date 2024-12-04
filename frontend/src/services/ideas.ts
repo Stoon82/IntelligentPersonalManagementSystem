@@ -1,8 +1,9 @@
 import { apiClient } from './api';
 import { Idea, IdeaCreate, IdeaUpdate, Tag } from '../types/idea';
 
-export const getIdeas = async (): Promise<Idea[]> => {
-    const response = await apiClient.get('/api/ideas');
+export const getIdeas = async (projectId?: number): Promise<Idea[]> => {
+    const url = projectId ? `/api/projects/${projectId}/ideas` : '/api/ideas';
+    const response = await apiClient.get(url);
     return response.data;
 };
 
