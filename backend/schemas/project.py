@@ -29,3 +29,20 @@ class Project(ProjectBase):
 
     class Config:
         orm_mode = True
+
+class ProjectMemberBase(BaseModel):
+    role: str = Field(..., min_length=1, max_length=50)
+    permissions: list[str] = []
+
+class ProjectMemberCreate(ProjectMemberBase):
+    user_id: int
+    project_id: int
+
+class ProjectMember(ProjectMemberBase):
+    id: int
+    user_id: int
+    project_id: int
+    joined_at: datetime
+
+    class Config:
+        orm_mode = True

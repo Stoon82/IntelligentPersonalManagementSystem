@@ -13,6 +13,21 @@ const API_ROUTES = {
     TASKS: {
         BASE: '/api/tasks',
         STATS: '/api/tasks/stats',
+    },
+    PROJECTS: {
+        BASE: '/api/projects',
+    },
+    LOGS: {
+        BASE: '/api/logs',
+    },
+    MINDMAPS: {
+        BASE: '/api/mindmaps',
+    },
+    CONCEPTS: {
+        BASE: '/api/concepts',
+    },
+    IDEAS: {
+        BASE: '/api/ideas',
     }
 };
 
@@ -29,19 +44,19 @@ const api = axios.create({
 
 // Add request interceptor for authentication and debugging
 api.interceptors.request.use(
-    (config) => {
+    (config: InternalAxiosRequestConfig) => {
+        // Add authorization header if token exists
+        const token = localStorage.getItem('token');
+        if (token && config.headers) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+
         // Log request for debugging
         console.log('API Request:', {
             method: config.method,
             url: config.url,
             headers: config.headers,
         });
-
-        // Add authentication token if available
-        const token = localStorage.getItem('token');
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
 
         return config;
     },
@@ -51,30 +66,50 @@ api.interceptors.request.use(
     }
 );
 
-// Add response interceptor for error handling
+// Add response interceptor for error handling and token refresh
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error.config as ExtendedAxiosRequestConfig;
 
-        // Handle 401 errors and token refresh
+        // Handle 401 Unauthorized errors
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
+
             try {
+                // Try to refresh the token
                 const refreshToken = localStorage.getItem('refresh_token');
-                if (refreshToken) {
-                    const response = await auth.refreshToken(refreshToken);
-                    localStorage.setItem('token', response.access_token);
-                    if (response.refresh_token) {
-                        localStorage.setItem('refresh_token', response.refresh_token);
-                    }
-                    return api(originalRequest);
+                if (!refreshToken) {
+                    throw new Error('No refresh token available');
                 }
+
+                const response = await auth.refreshToken(refreshToken);
+                localStorage.setItem('token', response.access_token);
+                if (response.refresh_token) {
+                    localStorage.setItem('refresh_token', response.refresh_token);
+                }
+
+                // Retry the original request with new token
+                if (originalRequest.headers) {
+                    originalRequest.headers['Authorization'] = `Bearer ${response.access_token}`;
+                }
+                return api(originalRequest);
             } catch (refreshError) {
-                console.error('Token refresh failed:', refreshError);
+                // If refresh fails, clear auth state and redirect to login
+                localStorage.removeItem('token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
             }
         }
 
+        // Handle network errors
+        if (!error.response) {
+            console.error('Network error:', error);
+            return Promise.reject(new Error('Network error. Please check your connection.'));
+        }
+
+        // Handle other errors
         return Promise.reject(error);
     }
 );

@@ -20,16 +20,19 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  TextField
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LogService } from '../services/logs';
-import { getProjectMindmaps, Mindmap } from '../services/mindmaps';
-import { getProjectConceptNotes, ConceptNote } from '../services/concepts';
-import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import { getProjectMindmaps, createMindmap, updateMindmap, deleteMindmap, Mindmap, MindmapNode } from '../services/mindmaps';
+import { getProjectConceptNotes, createConceptNote, updateConceptNote, deleteConceptNote, ConceptNote, ConceptNoteUpdate } from '../services/concepts';
+import { Delete as DeleteIcon, Edit as EditIcon, Add as AddIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import CreateLogDialog from '../components/logs/CreateLogDialog';
 import { Log } from '../types/log';
+import { getIdeas, createIdea, updateIdea, deleteIdea } from '../services/ideas';
+import { Idea, IdeaCreate, IdeaUpdate } from '../types/idea';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -64,6 +67,30 @@ export default function UserContent() {
   const [isCreateLogOpen, setIsCreateLogOpen] = React.useState(false);
   const [selectedLog, setSelectedLog] = React.useState<Log | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [deleteItemType, setDeleteItemType] = React.useState<'log' | 'mindmap' | 'concept' | 'idea'>('log');
+  const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
+  const [isCreateMindmapOpen, setIsCreateMindmapOpen] = React.useState(false);
+  const [isCreateNoteOpen, setIsCreateNoteOpen] = React.useState(false);
+  const [isCreateIdeaOpen, setIsCreateIdeaOpen] = React.useState(false);
+  const [newMindmap, setNewMindmap] = React.useState({ title: '', text: '' });
+  const [newNote, setNewNote] = React.useState({ title: '', content: '' });
+  const [newIdea, setNewIdea] = React.useState<{
+    title: string;
+    description: string;
+    status: 'draft' | 'in_progress' | 'implemented' | 'archived';
+    tags: string[];
+  }>({ 
+    title: '', 
+    description: '', 
+    status: 'draft', 
+    tags: [] 
+  });
+  const [selectedMindmap, setSelectedMindmap] = React.useState<Mindmap | null>(null);
+  const [selectedNote, setSelectedNote] = React.useState<ConceptNote | null>(null);
+  const [selectedIdea, setSelectedIdea] = React.useState<Idea | null>(null);
+  const [isEditMindmapOpen, setIsEditMindmapOpen] = React.useState(false);
+  const [isEditNoteOpen, setIsEditNoteOpen] = React.useState(false);
+  const [isEditIdeaOpen, setIsEditIdeaOpen] = React.useState(false);
 
   // Fetch projects
   const { data: projects = [] } = useQuery({
@@ -78,28 +105,117 @@ export default function UserContent() {
   const { data: logs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['logs', selectedProjectId],
     queryFn: () => LogService.getLogs(selectedProjectId || undefined),
-    enabled: true // Always fetch logs as they might not require project ID
+    enabled: true
   });
 
   const { data: mindmaps = [], isLoading: mindmapsLoading } = useQuery({
     queryKey: ['mindmaps', selectedProjectId],
-    queryFn: () => selectedProjectId ? getProjectMindmaps(selectedProjectId) : Promise.resolve([]),
-    enabled: !!selectedProjectId
+    queryFn: () => getProjectMindmaps(selectedProjectId || 0),
+    enabled: true
   });
 
   const { data: concepts = [], isLoading: conceptsLoading } = useQuery({
     queryKey: ['concepts', selectedProjectId],
-    queryFn: () => selectedProjectId ? getProjectConceptNotes(selectedProjectId) : Promise.resolve([]),
-    enabled: !!selectedProjectId
+    queryFn: () => getProjectConceptNotes(selectedProjectId || 0),
+    enabled: true
   });
 
-  // Mutations
+  const { data: ideas = [], isLoading: ideasLoading } = useQuery({
+    queryKey: ['ideas'],
+    queryFn: () => getIdeas(),
+    enabled: true
+  });
+
+  // Create mutations
+  const createMindmapMutation = useMutation({
+    mutationFn: (data: { title: string, text: string }) => {
+      const mindmapNode: MindmapNode = {
+        id: 'root',
+        text: data.text,
+        children: []
+      };
+      return createMindmap(data.title, mindmapNode, selectedProjectId || 0);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mindmaps'] });
+    }
+  });
+
+  const createNoteMutation = useMutation({
+    mutationFn: (data: { title: string, content: string }) => 
+      createConceptNote({
+        title: data.title,
+        content: data.content,
+        project_id: selectedProjectId || 0
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['concepts'] });
+    }
+  });
+
+  const createIdeaMutation = useMutation({
+    mutationFn: (data: IdeaCreate) => createIdea(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ideas'] });
+    }
+  });
+
+  // Update mutations
+  const updateMindmapMutation = useMutation({
+    mutationFn: (data: { id: number; title: string; text: string }) => {
+      const mindmapNode: MindmapNode = {
+        id: 'root',
+        text: data.text,
+        children: []
+      };
+      return updateMindmap(data.id, data.title, mindmapNode);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mindmaps'] });
+    }
+  });
+
+  const updateNoteMutation = useMutation({
+    mutationFn: (data: ConceptNoteUpdate) => 
+      updateConceptNote(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['concepts'] });
+    }
+  });
+
+  const updateIdeaMutation = useMutation({
+    mutationFn: (data: { id: number } & IdeaUpdate) => updateIdea({ ...data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ideas'] });
+    }
+  });
+
+  // Delete mutations
   const deleteLogMutation = useMutation({
     mutationFn: (logId: number) => LogService.deleteLog(logId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['logs'] });
-      setIsDeleteDialogOpen(false);
-      setSelectedLog(null);
+    }
+  });
+
+  const deleteMindmapMutation = useMutation({
+    mutationFn: (id: number) => deleteMindmap(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mindmaps'] });
+    }
+  });
+
+  const deleteConceptMutation = useMutation({
+    mutationFn: (id: number) => deleteConceptNote(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['concepts'] });
+    }
+  });
+
+  const deleteIdeaMutation = useMutation({
+    mutationFn: (id: number) => deleteIdea(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ideas'] });
     }
   });
 
@@ -120,15 +236,105 @@ export default function UserContent() {
     setIsCreateLogOpen(true);
   };
 
-  const handleDeleteLog = (log: Log) => {
-    setSelectedLog(log);
+  const handleDeleteItem = (type: 'log' | 'mindmap' | 'concept' | 'idea', id: number) => {
+    setDeleteItemType(type);
+    setSelectedItemId(id);
     setIsDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (selectedLog) {
-      deleteLogMutation.mutate(selectedLog.id);
+    if (!selectedItemId) return;
+
+    switch (deleteItemType) {
+      case 'log':
+        deleteLogMutation.mutate(selectedItemId);
+        break;
+      case 'mindmap':
+        deleteMindmapMutation.mutate(selectedItemId);
+        break;
+      case 'concept':
+        deleteConceptMutation.mutate(selectedItemId);
+        break;
+      case 'idea':
+        deleteIdeaMutation.mutate(selectedItemId);
+        break;
     }
+  };
+
+  const handleCreateMindmap = () => {
+    createMindmapMutation.mutate(newMindmap);
+    setIsCreateMindmapOpen(false);
+    setNewMindmap({ title: '', text: '' });
+  };
+
+  const handleCreateNote = () => {
+    createNoteMutation.mutate(newNote);
+    setIsCreateNoteOpen(false);
+    setNewNote({ title: '', content: '' });
+  };
+
+  const handleCreateIdea = () => {
+    createIdeaMutation.mutate(newIdea as IdeaCreate);
+    setIsCreateIdeaOpen(false);
+    setNewIdea({ title: '', description: '', status: 'draft', tags: [] });
+  };
+
+  const handleEditMindmap = (mindmap: Mindmap) => {
+    setSelectedMindmap(mindmap);
+    setNewMindmap({ title: mindmap.title, text: mindmap.data.text });
+    setIsEditMindmapOpen(true);
+  };
+
+  const handleUpdateMindmap = () => {
+    if (!selectedMindmap) return;
+    updateMindmapMutation.mutate({
+      id: selectedMindmap.id,
+      title: newMindmap.title,
+      text: newMindmap.text
+    });
+  };
+
+  const handleEditNote = (note: ConceptNote) => {
+    setSelectedNote(note);
+    setNewNote({ title: note.title, content: note.content });
+    setIsEditNoteOpen(true);
+  };
+
+  const handleUpdateNote = () => {
+    if (!selectedNote) return;
+    updateNoteMutation.mutate({
+      id: selectedNote.id,
+      title: newNote.title,
+      content: newNote.content
+    });
+  };
+
+  const handleEditIdea = (idea: Idea) => {
+    setSelectedIdea(idea);
+    setNewIdea({
+      title: idea.title,
+      description: idea.description,
+      status: idea.status,
+      tags: idea.tags.map(tag => tag.name)
+    });
+    setIsEditIdeaOpen(true);
+  };
+
+  const handleUpdateIdea = () => {
+    if (!selectedIdea) return;
+    updateIdeaMutation.mutate({
+      id: selectedIdea.id,
+      title: newIdea.title,
+      description: newIdea.description,
+      status: newIdea.status,
+      tags: newIdea.tags
+    });
+  };
+
+  const clearInputs = () => {
+    setNewMindmap({ title: '', text: '' });
+    setNewNote({ title: '', content: '' });
+    setNewIdea({ title: '', description: '', status: 'draft', tags: [] });
   };
 
   return (
@@ -158,15 +364,21 @@ export default function UserContent() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={value} onChange={handleTabChange}>
           <Tab label="Logs" />
-          <Tab label="Mindmaps" disabled={!selectedProjectId} />
-          <Tab label="Notes & Concepts" disabled={!selectedProjectId} />
+          <Tab label="Mindmaps" />
+          <Tab label="Notes & Concepts" />
+          <Tab label="Ideas" />
         </Tabs>
       </Box>
 
       <TabPanel value={value} index={0}>
         <Box sx={{ mb: 2 }}>
-          <Button variant="contained" color="primary" onClick={handleCreateLog}>
-            + New Log
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateLogOpen(true)}
+          >
+            New Log
           </Button>
         </Box>
         <List>
@@ -201,7 +413,7 @@ export default function UserContent() {
                     edge="end" 
                     aria-label="delete" 
                     size="small"
-                    onClick={() => handleDeleteLog(log)}
+                    onClick={() => handleDeleteItem('log', log.id)}
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -213,55 +425,164 @@ export default function UserContent() {
       </TabPanel>
 
       <TabPanel value={value} index={1}>
-        <Grid container spacing={3}>
-          {mindmaps.map((mindmap) => (
-            <Grid item xs={12} sm={6} md={4} key={mindmap.id}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6">{mindmap.title}</Typography>
-                <Typography variant="body2" color="textSecondary">
-                  {mindmap.description}
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Button variant="outlined" size="small" sx={{ mr: 1 }}>
-                    View
-                  </Button>
-                  <IconButton size="small" sx={{ mr: 1 }}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton size="small">
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+        <Box sx={{ mb: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateMindmapOpen(true)}
+          >
+            New Mindmap
+          </Button>
+        </Box>
+        {mindmapsLoading ? (
+          <Typography>Loading mindmaps...</Typography>
+        ) : (
+          <Grid container spacing={3}>
+            {mindmaps.map((mindmap: Mindmap) => (
+              <Grid item xs={12} sm={6} md={4} key={mindmap.id}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="h6">{mindmap.title}</Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    {mindmap.data.text}
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      sx={{ mr: 1 }}
+                      onClick={() => handleEditMindmap(mindmap)}
+                    >
+                      View
+                    </Button>
+                    <IconButton 
+                      size="small" 
+                      sx={{ mr: 1 }}
+                      onClick={() => handleEditMindmap(mindmap)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleDeleteItem('mindmap', mindmap.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </TabPanel>
 
       <TabPanel value={value} index={2}>
-        <List>
-          {concepts.map((concept) => (
-            <Paper key={concept.id} sx={{ mb: 2, p: 2 }}>
-              <ListItem>
-                <ListItemText
-                  primary={concept.title}
-                  secondary={concept.content}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton edge="end" aria-label="edit" size="small" sx={{ mr: 1 }}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton edge="end" aria-label="delete" size="small">
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            </Paper>
-          ))}
-        </List>
+        <Box sx={{ mb: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateNoteOpen(true)}
+          >
+            New Note
+          </Button>
+        </Box>
+        {conceptsLoading ? (
+          <Typography>Loading concepts...</Typography>
+        ) : (
+          <List>
+            {concepts.map((concept: ConceptNote) => (
+              <Paper key={concept.id} sx={{ mb: 2, p: 2 }}>
+                <ListItem>
+                  <ListItemText
+                    primary={concept.title}
+                    secondary={concept.content}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton 
+                      edge="end" 
+                      aria-label="edit" 
+                      size="small" 
+                      sx={{ mr: 1 }}
+                      onClick={() => handleEditNote(concept)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton 
+                      edge="end" 
+                      aria-label="delete" 
+                      size="small"
+                      onClick={() => handleDeleteItem('concept', concept.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </Paper>
+            ))}
+          </List>
+        )}
       </TabPanel>
 
-      {/* Create/Edit Log Dialog */}
+      <TabPanel value={value} index={3}>
+        <Box sx={{ mb: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateIdeaOpen(true)}
+          >
+            New Idea
+          </Button>
+        </Box>
+        {ideasLoading ? (
+          <Typography>Loading ideas...</Typography>
+        ) : (
+          <Grid container spacing={3}>
+            {ideas.map((idea: Idea) => (
+              <Grid item xs={12} sm={6} md={4} key={idea.id}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="h6">{idea.title}</Typography>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    {idea.description}
+                  </Typography>
+                  <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                    <Chip
+                      label={idea.status}
+                      size="small"
+                      color={idea.status === 'draft' ? 'default' : idea.status === 'in_progress' ? 'primary' : 'success'}
+                    />
+                    {idea.tags.map((tag) => (
+                      <Chip
+                        key={tag.id}
+                        label={tag.name}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                  <Box sx={{ mt: 2 }}>
+                    <IconButton 
+                      size="small" 
+                      sx={{ mr: 1 }}
+                      onClick={() => handleEditIdea(idea)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small"
+                      onClick={() => handleDeleteItem('idea', idea.id)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </TabPanel>
+
       <CreateLogDialog
         open={isCreateLogOpen}
         onClose={() => {
@@ -271,11 +592,264 @@ export default function UserContent() {
         initialData={selectedLog}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Log</DialogTitle>
+      {/* Create Mindmap Dialog */}
+      <Dialog open={isCreateMindmapOpen} onClose={() => setIsCreateMindmapOpen(false)}>
+        <DialogTitle>Create New Mindmap</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete this log?
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newMindmap.title}
+            onChange={(e) => setNewMindmap({ ...newMindmap, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Central Topic"
+            fullWidth
+            multiline
+            rows={4}
+            value={newMindmap.text}
+            onChange={(e) => setNewMindmap({ ...newMindmap, text: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsCreateMindmapOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateMindmap} color="primary">Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Note Dialog */}
+      <Dialog open={isCreateNoteOpen} onClose={() => {
+        setIsCreateNoteOpen(false);
+        clearInputs();
+      }}>
+        <DialogTitle>Create New Note</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Project</InputLabel>
+            <Select
+              value={selectedProjectId || ''}
+              label="Project"
+              onChange={handleProjectChange}
+              required
+            >
+              {projects.map((project: any) => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newNote.title}
+            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Content"
+            fullWidth
+            multiline
+            rows={4}
+            value={newNote.content}
+            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setIsCreateNoteOpen(false);
+            clearInputs();
+          }}>Cancel</Button>
+          <Button onClick={handleCreateNote} color="primary">Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Idea Dialog */}
+      <Dialog open={isCreateIdeaOpen} onClose={() => setIsCreateIdeaOpen(false)}>
+        <DialogTitle>Create New Idea</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newIdea.title}
+            onChange={(e) => setNewIdea({ ...newIdea, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={newIdea.description}
+            onChange={(e) => setNewIdea({ ...newIdea, description: e.target.value })}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={newIdea.status}
+              label="Status"
+              onChange={(e) => setNewIdea({ ...newIdea, status: e.target.value as 'draft' | 'in_progress' | 'implemented' | 'archived' })}
+            >
+              <MenuItem value="draft">Draft</MenuItem>
+              <MenuItem value="in_progress">In Progress</MenuItem>
+              <MenuItem value="implemented">Implemented</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsCreateIdeaOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateIdea} color="primary">Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Mindmap Dialog */}
+      <Dialog open={isEditMindmapOpen} onClose={() => {
+        setIsEditMindmapOpen(false);
+        setSelectedMindmap(null);
+        clearInputs();
+      }}>
+        <DialogTitle>Edit Mindmap</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newMindmap.title}
+            onChange={(e) => setNewMindmap({ ...newMindmap, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Central Topic"
+            fullWidth
+            multiline
+            rows={4}
+            value={newMindmap.text}
+            onChange={(e) => setNewMindmap({ ...newMindmap, text: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setIsEditMindmapOpen(false);
+            setSelectedMindmap(null);
+            clearInputs();
+          }}>Cancel</Button>
+          <Button onClick={handleUpdateMindmap} color="primary">Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Note Dialog */}
+      <Dialog open={isEditNoteOpen} onClose={() => {
+        setIsEditNoteOpen(false);
+        setSelectedNote(null);
+        clearInputs();
+      }}>
+        <DialogTitle>Edit Note</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Project</InputLabel>
+            <Select
+              value={selectedProjectId || ''}
+              label="Project"
+              onChange={handleProjectChange}
+              required
+            >
+              {projects.map((project: any) => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newNote.title}
+            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Content"
+            fullWidth
+            multiline
+            rows={4}
+            value={newNote.content}
+            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setIsEditNoteOpen(false);
+            setSelectedNote(null);
+            clearInputs();
+          }}>Cancel</Button>
+          <Button onClick={handleUpdateNote} color="primary">Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Idea Dialog */}
+      <Dialog open={isEditIdeaOpen} onClose={() => {
+        setIsEditIdeaOpen(false);
+        setSelectedIdea(null);
+        clearInputs();
+      }}>
+        <DialogTitle>Edit Idea</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Title"
+            fullWidth
+            value={newIdea.title}
+            onChange={(e) => setNewIdea({ ...newIdea, title: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={newIdea.description}
+            onChange={(e) => setNewIdea({ ...newIdea, description: e.target.value })}
+          />
+          <FormControl fullWidth margin="dense">
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={newIdea.status}
+              label="Status"
+              onChange={(e) => setNewIdea({ ...newIdea, status: e.target.value as 'draft' | 'in_progress' | 'implemented' | 'archived' })}
+            >
+              <MenuItem value="draft">Draft</MenuItem>
+              <MenuItem value="in_progress">In Progress</MenuItem>
+              <MenuItem value="implemented">Implemented</MenuItem>
+              <MenuItem value="archived">Archived</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setIsEditIdeaOpen(false);
+            setSelectedIdea(null);
+            clearInputs();
+          }}>Cancel</Button>
+          <Button onClick={handleUpdateIdea} color="primary">Update</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)}>
+        <DialogTitle>Delete {deleteItemType.charAt(0).toUpperCase() + deleteItemType.slice(1)}</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete this {deleteItemType}?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>

@@ -5,14 +5,16 @@ from typing import List, Optional, Literal
 from datetime import datetime
 
 from database import get_db
-from models.project import Project, ProjectStatus
+from models.project import Project, ProjectStatus, ProjectMember
 from models.task import Task
 from models.idea import Idea
 from models.concept import ConceptNote
-from schemas.project import ProjectCreate, ProjectUpdate, Project as ProjectSchema
+from models.activity import Activity
+from schemas.project import ProjectCreate, ProjectUpdate, Project as ProjectSchema, ProjectMember as ProjectMemberSchema
 from schemas.task import TaskResponse
 from schemas.idea import IdeaResponse
 from schemas.concept import ConceptNote as ConceptNoteSchema
+from schemas.activity import Activity as ActivitySchema
 from auth.utils import get_current_user
 from models.user import User
 
@@ -126,6 +128,47 @@ def get_project_concept_notes(
     ).order_by(ConceptNote.created_at.desc()).all()
     
     return concepts
+
+@router.get("/{project_id}/members", response_model=List[ProjectMemberSchema])
+def get_project_members(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view project members")
+    
+    members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+    return members
+
+@router.get("/{project_id}/activities", response_model=List[ActivitySchema])
+def get_project_activities(
+    project_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view project activities")
+    
+    activities = (
+        db.query(Activity)
+        .filter(Activity.project_id == project_id)
+        .order_by(desc(Activity.created_at))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return activities
 
 @router.post("/{project_id}/ideas/{idea_id}")
 def link_idea_to_project(

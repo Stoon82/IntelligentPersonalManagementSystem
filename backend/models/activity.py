@@ -9,12 +9,15 @@ class Activity(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     type = Column(String(50))  # e.g., 'music', 'web', 'app', 'location'
     data = Column(JSON)  # Store flexible activity data
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     
     # Define relationship with User model
     user = relationship("User", back_populates="activities", lazy="joined")
+    # Define relationship with Project model
+    project = relationship("Project", back_populates="activities", lazy="joined")
 
 class JournalEntry(Base):
     __tablename__ = "journal_entries"

@@ -19,10 +19,11 @@ class User(Base):
     # Essential relationships for auth
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     # Core functionality relationships
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan", lazy='dynamic')
+    project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     activities = relationship("Activity", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     journal_entries = relationship("JournalEntry", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
-    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan", lazy='dynamic')
     ideas = relationship("Idea", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     concept_notes = relationship("ConceptNote", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan", lazy='dynamic')
