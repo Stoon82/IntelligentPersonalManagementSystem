@@ -14,6 +14,9 @@ import {
     Folder as ProjectIcon,
     Person as PersonIcon,
     Book as JournalIcon,
+    CalendarMonth as CalendarIcon,
+    Article as ContentIcon,
+    Lightbulb as IdeaIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -25,10 +28,13 @@ export const NavBar: React.FC = () => {
     const isActive = (path: string) => location.pathname === path;
 
     const navItems = [
-        { path: '/', label: 'Dashboard', icon: <HomeIcon /> },
+        { path: '/', label: 'Dashbooooard', icon: <HomeIcon /> },
         { path: '/projects', label: 'Projects', icon: <ProjectIcon /> },
         { path: '/tasks', label: 'Tasks', icon: <TaskIcon /> },
+        { path: '/ideas', label: 'Ideas', icon: <IdeaIcon /> },
+        { path: '/calendar', label: 'Calendar', icon: <CalendarIcon /> },
         { path: '/journal', label: 'Journal', icon: <JournalIcon /> },
+        { path: '/content', label: 'My Content', icon: <ContentIcon /> },
     ];
 
     return (
@@ -53,7 +59,7 @@ export const NavBar: React.FC = () => {
                                 },
                             }}
                         >
-                            {item.label}
+                            {item.label} 
                         </Button>
                     ))}
                 </Box>

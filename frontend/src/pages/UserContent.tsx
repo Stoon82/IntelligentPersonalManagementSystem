@@ -21,7 +21,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  CircularProgress
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LogService } from '../services/logs';
@@ -33,6 +34,8 @@ import CreateLogDialog from '../components/logs/CreateLogDialog';
 import { Log } from '../types/log';
 import { getIdeas, createIdea, updateIdea, deleteIdea } from '../services/ideas';
 import { Idea, IdeaCreate, IdeaUpdate } from '../types/idea';
+import { getJournals, Journal, deleteJournal } from '../services/journals';
+import { useNavigate } from 'react-router-dom';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -62,12 +65,13 @@ function TabPanel(props: TabPanelProps) {
 
 export default function UserContent() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [value, setValue] = React.useState(0);
   const [selectedProjectId, setSelectedProjectId] = React.useState<number | null>(null);
   const [isCreateLogOpen, setIsCreateLogOpen] = React.useState(false);
   const [selectedLog, setSelectedLog] = React.useState<Log | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [deleteItemType, setDeleteItemType] = React.useState<'log' | 'mindmap' | 'concept' | 'idea'>('log');
+  const [deleteItemType, setDeleteItemType] = React.useState<'log' | 'mindmap' | 'concept' | 'idea' | 'journal'>('log');
   const [selectedItemId, setSelectedItemId] = React.useState<number | null>(null);
   const [isCreateMindmapOpen, setIsCreateMindmapOpen] = React.useState(false);
   const [isCreateNoteOpen, setIsCreateNoteOpen] = React.useState(false);
@@ -102,9 +106,12 @@ export default function UserContent() {
   });
 
   // Fetch content based on selected project
-  const { data: logs = [], isLoading: logsLoading } = useQuery({
+  const { data: logs = [], isLoading } = useQuery({
     queryKey: ['logs', selectedProjectId],
-    queryFn: () => LogService.getLogs(selectedProjectId || undefined),
+    queryFn: async () => {
+      const response = await fetch(selectedProjectId ? `/api/projects/${selectedProjectId}/logs` : '/api/logs');
+      return response.json();
+    },
     enabled: true
   });
 
@@ -124,6 +131,11 @@ export default function UserContent() {
     queryKey: ['ideas', selectedProjectId],
     queryFn: () => getIdeas(selectedProjectId || undefined),
     enabled: !!selectedProjectId
+  });
+
+  const { data: journals = [] } = useQuery({
+    queryKey: ['journals'],
+    queryFn: () => getJournals(),
   });
 
   // Create mutations
@@ -219,6 +231,14 @@ export default function UserContent() {
     }
   });
 
+  const deleteJournalMutation = useMutation({
+    mutationFn: (id: number) => deleteJournal(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['journals'] });
+      setIsDeleteDialogOpen(false);
+    },
+  });
+
   const handleProjectChange = (event: any) => {
     setSelectedProjectId(event.target.value === "" ? null : event.target.value);
   };
@@ -227,22 +247,18 @@ export default function UserContent() {
     setValue(newValue);
   };
 
-  const handleCreateLog = () => {
-    setIsCreateLogOpen(true);
-  };
-
   const handleEditLog = (log: Log) => {
     setSelectedLog(log);
     setIsCreateLogOpen(true);
   };
 
-  const handleDeleteItem = (type: 'log' | 'mindmap' | 'concept' | 'idea', id: number) => {
+  const handleDeleteItem = (type: 'log' | 'mindmap' | 'concept' | 'idea' | 'journal', id: number) => {
     setDeleteItemType(type);
     setSelectedItemId(id);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const handleConfirmDelete = () => {
     if (!selectedItemId) return;
 
     switch (deleteItemType) {
@@ -257,6 +273,9 @@ export default function UserContent() {
         break;
       case 'idea':
         deleteIdeaMutation.mutate(selectedItemId);
+        break;
+      case 'journal':
+        deleteJournalMutation.mutate(selectedItemId);
         break;
     }
   };
@@ -367,20 +386,27 @@ export default function UserContent() {
           <Tab label="Mindmaps" />
           <Tab label="Notes & Concepts" />
           <Tab label="Ideas" />
+          <Tab label="Journals" />
         </Tabs>
       </Box>
 
       <TabPanel value={value} index={0}>
-        <Box sx={{ mb: 2 }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            startIcon={<AddIcon />}
-            onClick={() => setIsCreateLogOpen(true)}
-          >
-            New Log
-          </Button>
-        </Box>
+        {isLoading ? (
+          <Box display="flex" justifyContent="center" py={5}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Box sx={{ mb: 2 }}>
+            <Button 
+              variant="contained" 
+              color="primary" 
+              startIcon={<AddIcon />}
+              onClick={() => setIsCreateLogOpen(true)}
+            >
+              New Log
+            </Button>
+          </Box>
+        )}
         <List>
           {logs.map((log) => (
             <Paper key={log.id} sx={{ mb: 2, p: 2 }}>
@@ -606,6 +632,75 @@ export default function UserContent() {
               </Grid>
             ))}
           </Grid>
+        )}
+      </TabPanel>
+
+      <TabPanel value={value} index={4}>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/journal/new')}
+          >
+            New Journal Entry
+          </Button>
+        </Box>
+        {journals.length > 0 ? (
+          <List>
+            {journals.map((journal: Journal) => (
+              <Paper key={journal.id} sx={{ mb: 2, p: 2 }}>
+                <ListItem>
+                  <ListItemText
+                    primary={journal.title}
+                    secondary={
+                      <Box component="span">
+                        <Typography
+                          component="span"
+                          variant="body2"
+                          color="textSecondary"
+                          display="block"
+                        >
+                          {journal.content}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          color="textSecondary"
+                          display="block"
+                          sx={{ mt: 1 }}
+                        >
+                          Created: {format(new Date(journal.created_at), 'PPpp')}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      aria-label="edit"
+                      onClick={() => navigate(`/journal/${journal.id}`)}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() => {
+                        setSelectedItemId(journal.id);
+                        setDeleteItemType('journal');
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              </Paper>
+            ))}
+          </List>
+        ) : (
+          <Typography>No journals found. Create one to get started!</Typography>
         )}
       </TabPanel>
 
@@ -879,7 +974,7 @@ export default function UserContent() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={confirmDelete} color="error">Delete</Button>
+          <Button onClick={handleConfirmDelete} color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>

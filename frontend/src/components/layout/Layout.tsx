@@ -24,6 +24,8 @@ import {
     ExitToApp as LogoutIcon,
     Lightbulb as IdeaIcon,
     LibraryBooks as ContentIcon,
+    Book as JournalIcon,
+    CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -52,6 +54,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         { path: '/projects', label: 'Projects', icon: <ProjectIcon /> },
         { path: '/tasks', label: 'Tasks', icon: <TaskIcon /> },
         { path: '/ideas', label: 'Ideas', icon: <IdeaIcon /> },
+        { path: '/journal', label: 'Journal', icon: <JournalIcon /> },
+        { path: '/calendar', label: 'Calendar', icon: <CalendarIcon /> },
         { path: '/content', label: 'My Content', icon: <ContentIcon /> },
     ];
 
