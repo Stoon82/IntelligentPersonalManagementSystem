@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { AuthResponse, LoginCredentials, RegisterData, Task, User } from '../types';
 
 // API routes configuration
-const API_ROUTES = {
+export const API_ROUTES = {
     AUTH: {
         LOGIN: '/api/auth/login',
         REGISTER: '/api/auth/register',
@@ -28,17 +28,22 @@ const API_ROUTES = {
     },
     IDEAS: {
         BASE: '/api/ideas',
+    },
+    JOURNALS: {
+        BASE: '/api/journals',
+        LIST: '/api/journals',
+        CREATE: '/api/journals'
     }
 };
 
 // Create axios instance with base configuration
 const api = axios.create({
-    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',  // Default to localhost if env var not set
+    baseURL: 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    withCredentials: true, // Required for cookies
+    withCredentials: true,
     timeout: 30000, // 30 seconds
 });
 
@@ -46,7 +51,7 @@ const api = axios.create({
 api.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         // Add authorization header if token exists
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('access_token');
         if (token && config.headers) {
             config.headers['Authorization'] = `Bearer ${token}`;
             // Ensure credentials are included
@@ -129,7 +134,7 @@ api.interceptors.response.use(
             const refreshToken = localStorage.getItem('refresh_token');
             if (!refreshToken) {
                 processQueue(new Error('No refresh token available'), null);
-                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 window.location.href = '/login';
                 return Promise.reject(new Error('No refresh token available'));
@@ -139,7 +144,7 @@ api.interceptors.response.use(
                 const response = await auth.refreshToken(refreshToken);
                 const newToken = response.access_token;
                 
-                localStorage.setItem('token', newToken);
+                localStorage.setItem('access_token', newToken);
                 if (response.refresh_token) {
                     localStorage.setItem('refresh_token', response.refresh_token);
                 }
@@ -152,7 +157,7 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 // Only redirect if we're not already on the login page
                 if (!window.location.pathname.includes('/login')) {
@@ -162,7 +167,7 @@ api.interceptors.response.use(
             }
         } catch (err) {
             processQueue(err, null);
-            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             window.location.href = '/login';
             return Promise.reject(err);
@@ -244,19 +249,19 @@ export const auth = {
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) {
             // If no refresh token, just clear local storage and return
-            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             return Promise.resolve();
         }
         return api.post(API_ROUTES.AUTH.LOGOUT, { refresh_token: refreshToken })
             .then(response => {
-                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 return response.data;
             })
             .catch(error => {
                 // Still clear tokens even if request fails
-                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
                 localStorage.removeItem('refresh_token');
                 throw error;
             });
