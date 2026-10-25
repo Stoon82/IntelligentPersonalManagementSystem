@@ -1,3 +1,8 @@
+> **ARCHIVED — superseded by [project-hub](https://github.com/Stoon82/project-hub).**
+> Kept for history; active development is in the successor. Landscape map: [project-hub](https://github.com/Stoon82/project-hub).
+
+---
+
 # IPMS (Intelligent Project Management System)
 
 A full-stack web application for project management with a React TypeScript frontend and FastAPI backend.
